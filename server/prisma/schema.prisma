@@ -1,0 +1,329 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  developer
+  company
+  admin
+}
+
+enum JobType {
+  full_time
+  part_time
+  contract
+  freelance
+}
+
+enum JobStatus {
+  active
+  closed
+  draft
+}
+
+enum NotificationType {
+  like
+  comment
+  follow
+  message
+  job
+  portfolio
+}
+
+  model User {
+    id                  String   @id @default(uuid())
+    email               String   @unique
+    password            String   @map("password_hash")
+    username            String   @unique
+    fullName            String?  @map("full_name")
+    bio                 String?
+    location            String?
+    avatarUrl           String?  @map("avatar_url")
+    coverImageUrl       String?  @map("cover_image_url")
+    website             String?
+    role                UserRole @default(developer)
+    isAvailableForHire  Boolean  @default(false) @map("is_available_for_hire")
+    createdAt           DateTime @default(now()) @map("created_at")
+    updatedAt           DateTime @updatedAt @map("updated_at")
+
+    // Relations
+    portfolio           Portfolio?
+    projects            Project[]
+    portfolioLikes      PortfolioLike[]
+    projectLikes        ProjectLike[]
+    projectComments     ProjectComment[]
+    jobs                Job[]
+    sentMessages        Message[] @relation("SentMessages")
+    notifications       Notification[]
+    conversations       ConversationParticipant[]
+    followers           Follow[] @relation("Following")
+    following           Follow[] @relation("Followers")
+
+    @@map("users")
+  }
+
+model Portfolio {
+  id              String   @id @default(uuid())
+  userId          String   @unique @map("user_id")
+  title           String
+  bio             String?
+  college         String?
+  graduationYear  Int?     @map("graduation_year")
+  skills          String[]
+  resumeUrl       String?  @map("resume_url")
+  linkedinUrl     String?  @map("linkedin_url")
+  githubUrl       String?  @map("github_url")
+  coverImageUrl   String?  @map("cover_image_url")
+  likesCount      Int      @default(0) @map("likes_count")
+  viewsCount      Int      @default(0) @map("views_count")
+  rank            Int?
+  isPublished     Boolean  @default(false) @map("is_published")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  portfolioProjects PortfolioProject[]
+  likes           PortfolioLike[]
+  views           PortfolioView[]
+
+  @@index([userId])
+  @@index([likesCount])
+  @@index([rank])
+  @@index([createdAt])
+  @@map("portfolios")
+}
+
+model PortfolioProject {
+  id              String   @id @default(uuid())
+  portfolioId     String   @map("portfolio_id")
+  title           String
+  description     String?
+  imageUrls       String[] @map("image_urls")
+  liveUrl         String?  @map("live_url")
+  githubUrl       String?  @map("github_url")
+  tags            String[]
+  sortOrder       Int      @default(0) @map("sort_order")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  portfolio       Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([sortOrder])
+  @@map("portfolio_projects")
+}
+
+model Project {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+  title           String?
+  description     String
+  imageUrl        String?  @map("image_url")
+  tags            String[]
+  likesCount      Int      @default(0) @map("likes_count")
+  commentsCount   Int      @default(0) @map("comments_count")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  likes           ProjectLike[]
+  comments        ProjectComment[]
+
+  @@index([userId])
+  @@index([likesCount])
+  @@index([createdAt])
+  @@map("projects")
+}
+
+model PortfolioLike {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  portfolioId String    @map("portfolio_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, portfolioId])
+  @@index([portfolioId])
+  @@map("portfolio_likes")
+}
+
+model ProjectLike {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  projectId String   @map("project_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, projectId])
+  @@index([projectId])
+  @@map("project_likes")
+}
+
+model ProjectComment {
+  id        String   @id @default(uuid())
+  projectId String   @map("project_id")
+  userId    String   @map("user_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
+  @@index([userId])
+  @@map("project_comments")
+}
+
+model PortfolioView {
+  id          String    @id @default(uuid())
+  portfolioId String    @map("portfolio_id")
+  viewerUserId String?  @map("viewer_user_id")
+  viewedAt    DateTime  @default(now()) @map("viewed_at")
+
+  // Relations
+  portfolio   Portfolio @relation(fields: [portfolioId], references: [id], onDelete: Cascade)
+
+  @@index([portfolioId])
+  @@index([viewedAt])
+  @@map("portfolio_views")
+}
+
+model Company {
+  id              String   @id @default(uuid())
+  name            String
+  description     String?
+  logoUrl         String?  @map("logo_url")
+  coverImageUrl   String?  @map("cover_image_url")
+  website         String?
+  location        String?
+  industry        String?
+  size            String?
+  foundedYear     Int?     @map("founded_year")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  jobs            Job[]
+
+  @@map("companies")
+}
+
+model Job {
+  id              String    @id @default(uuid())
+  companyId       String    @map("company_id")
+  postedByUserId  String    @map("posted_by_user_id")
+  title           String
+  description     String
+  location        String?
+  jobType         JobType   @map("job_type")
+  salaryRange     String?   @map("salary_range")
+  requirements    String[]
+  benefits        String[]
+  isRemote        Boolean   @default(false) @map("is_remote")
+  status          JobStatus @default(active)
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  expiresAt       DateTime? @map("expires_at")
+
+  // Relations
+  company         Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  postedBy        User      @relation(fields: [postedByUserId], references: [id])
+
+  @@index([companyId])
+  @@index([status])
+  @@index([createdAt])
+  @@map("jobs")
+}
+
+model Conversation {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  participants ConversationParticipant[]
+  messages     Message[]
+
+  @@map("conversations")
+}
+
+model ConversationParticipant {
+  id              String       @id @default(uuid())
+  conversationId  String       @map("conversation_id")
+  userId          String       @map("user_id")
+  joinedAt        DateTime     @default(now()) @map("joined_at")
+
+  // Relations
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user            User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+  @@map("conversation_participants")
+}
+
+model Message {
+  id              String       @id @default(uuid())
+  conversationId  String       @map("conversation_id")
+  senderId        String       @map("sender_id")
+  content         String
+  isRead          Boolean      @default(false) @map("is_read")
+  createdAt       DateTime     @default(now()) @map("created_at")
+
+  // Relations
+  conversation    Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User         @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([senderId])
+  @@map("messages")
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String           @map("user_id")
+  type      NotificationType
+  title     String
+  message   String
+  link      String?
+  isRead    Boolean          @default(false) @map("is_read")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  // Relations
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+  @@map("notifications")
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String   @map("follower_id")
+  followingId String   @map("following_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  follower    User     @relation("Followers", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+  @@index([followingId])
+  @@map("follows")
+}
