@@ -11,7 +11,7 @@ export class UserController {
 
   
 
-  @Get()
+  @Get('all')
   async findAllUsers() {
      try{
       const users = await this.userService.getAllUser();
@@ -39,10 +39,12 @@ export class UserController {
     }
   }
 
-  @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
+  @Patch('me')
+  @UseGuards(AuthGuard('jwt'))
+  async update(@Req() req, @Body() updateUserDto: UpdateUserDto) {
     try {
-      const updatedUser = await this.userService.updateUser(id, updateUserDto);
+      const userId = req.user.sub;
+      const updatedUser = await this.userService.updateUser(userId, updateUserDto);
       return {
         statusCode: HttpStatus.OK,
         message: "User updated successfully",
